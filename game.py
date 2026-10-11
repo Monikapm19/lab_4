@@ -9,43 +9,75 @@ DIRS = {pygame.K_UP: (-1, 0), pygame.K_DOWN: (1, 0), pygame.K_LEFT: (0, -1), pyg
 MOVE_DELAY, ENEMY_DELAY, PUMP_RANGE, DEFLATE_AFTER = 0.11, 0.35, 3, 1.5
 
 
+
 def dirt_color(row):
-    """Return an (r, g, b) colour for dirt in the given row, or None for the default gradient."""
-    pass
+    """Return an RGB colour based on dirt depth."""
+    if row <= 2:
+        return (194, 145, 83)
+    elif row <= 5:
+        return (166, 112, 62)
+    elif row <= 8:
+        return (135, 82, 48)
+    elif row <= 11:
+        return (105, 61, 40)
+    else:
+        return (78, 45, 34)
+
+
 
 
 def on_enemy_popped(enemy, score):
-    """Called when an enemy is popped; add particles, bonus points, or a colour flash here."""
-    pass
+    """Award points when an enemy is popped, with a depth bonus."""
+    row = enemy.cell[0]
+    bonus = 100 * (row // 4)
+    return score + 200 + bonus
+
 
 
 def enemy_speed_multiplier(level):
-    """Return a speed multiplier for enemies at the given level, or None for the default speed."""
-    pass
+    """Increase enemy speed gradually as levels progress."""
+    level = max(1, level)
+    return min(1.0 + 0.1 * (level - 1), 2.5)
 
 
 def in_bounds(r, c):
     return 0 <= r < ROWS and 0 <= c < COLS
 
 
+
 def bfs_path(grid, start, goal):
-    queue, parents = deque([start]), {start: None}
+    queue = deque([start])
+    parents = {start: None}
+
     while queue:
-        cell = queue.pop()
+        cell = queue.popleft()
+
         if cell == goal:
             break
+
         for dr, dc in DIRS.values():
             nxt = (cell[0] + dr, cell[1] + dc)
-            if in_bounds(*nxt) and not grid[nxt[0]][nxt[1]] and nxt not in parents:
+
+            if (
+                in_bounds(*nxt)
+                and not grid[nxt[0]][nxt[1]]
+                and nxt not in parents
+            ):
                 parents[nxt] = cell
                 queue.append(nxt)
+
     if goal not in parents:
         return []
-    path, cell = [], goal
+
+    path = []
+    cell = goal
+
     while cell != start:
         path.append(cell)
         cell = parents[cell]
+
     return path[::-1]
+
 
 
 class Enemy:
@@ -113,13 +145,12 @@ class Game:
         enemy.stage += 1
         enemy.last_pump = self.time
         if enemy.stage >= 4:
-            self.enemies.remove(enemy)
-            self.score += 200 + 100 * (enemy.cell[0] // 4)
-            self.pump_target = None
-            on_enemy_popped(enemy, self.score)
-            if not self.enemies:
-                self.level += 1
-                self.start_level()
+           self.enemies.remove(enemy)
+           self.score = on_enemy_popped(enemy, self.score)
+           self.pump_target = None
+           if not self.enemies:
+            self.level += 1
+            self.start_level()
 
     def hurt(self):
         self.lives -= 1
